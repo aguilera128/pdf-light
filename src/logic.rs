@@ -35,6 +35,8 @@ pub struct Settings {
     pub ghostscript_path: Option<String>,
     /// "en", "es", "fr", "de", "pt" o "it"; sin valor = el idioma de Windows.
     pub language: Option<String>,
+    /// Preguntar a GitHub una vez al día si hay una versión nueva.
+    pub check_updates: bool,
 }
 
 impl Default for Settings {
@@ -48,6 +50,7 @@ impl Default for Settings {
             auto_name_pattern: "{title}".into(),
             ghostscript_path: None,
             language: None,
+            check_updates: true,
         }
     }
 }

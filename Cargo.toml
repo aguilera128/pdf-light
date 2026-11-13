@@ -1,6 +1,6 @@
 [package]
 name = "pdflight"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2024"
 description = "Impresora virtual a PDF para Windows"
 license = "AGPL-3.0-or-later"
@@ -12,6 +12,7 @@ serde_json = "1"
 windows-sys = { version = "0.61.2", features = [
     "Win32_Foundation",
     "Win32_Globalization",
+    "Win32_Networking_WinHttp",
     "Win32_Security",
     "Win32_Graphics_Gdi",
     "Win32_System_Com",

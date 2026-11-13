@@ -15,6 +15,7 @@
 #define LBS_EXTENDEDSEL 0x800L
 #define ES_AUTOHSCROLL 0x80L
 #define ES_PASSWORD 0x20L
+#define BS_MULTILINE 0x2000L
 #define CBS_DROPDOWNLIST 0x3L
 
 // Los identificadores coinciden con las constantes de src/main.rs.
@@ -51,7 +52,7 @@ BEGIN
 END
 
 // Opciones (menú de la bandeja).
-2 DIALOGEX 0, 0, 240, 112
+2 DIALOGEX 0, 0, 240, 138
 STYLE DS_SETFONT | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "PDF Light"
 FONT 9, "Segoe UI"
@@ -61,6 +62,7 @@ BEGIN
     LTEXT "File &name when saving without asking", 203, 7, 42, 226, 10
     EDITTEXT 204, 7, 54, 226, 13, ES_AUTOHSCROLL | WS_TABSTOP
     LTEXT "{title} {date} {time}", 205, 7, 70, 226, 10
-    DEFPUSHBUTTON "OK", 1, 127, 90, 50, 15
-    PUSHBUTTON "Cancel", 2, 183, 90, 50, 15
+    AUTOCHECKBOX "Check for new versions once a day (contacts github.com)", 207, 7, 88, 226, 18, BS_MULTILINE | WS_TABSTOP
+    DEFPUSHBUTTON "OK", 1, 127, 116, 50, 15
+    PUSHBUTTON "Cancel", 2, 183, 116, 50, 15
 END

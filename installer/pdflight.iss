@@ -3,7 +3,7 @@
 ; Compilar:  ISCC.exe installer\pdflight.iss
 ; Salida:    dist\PDFLight-Setup-<versión>.exe
 
-#define AppVersion "0.5.0"
+#define AppVersion "0.6.0"
 ; Instalador oficial de Ghostscript (AGPL), empaquetado tal cual desde vendor\.
 #define GsFile "gs10080w64.exe"
 
@@ -41,6 +41,12 @@ Name: "pt"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 Name: "it"; MessagesFile: "compiler:Languages\Italian.isl"
 
 [CustomMessages]
+en.CheckUpdates=Check for new versions once a day (contacts github.com)
+es.CheckUpdates=Buscar versiones nuevas una vez al día (consulta github.com)
+fr.CheckUpdates=Rechercher les nouvelles versions une fois par jour (contacte github.com)
+de.CheckUpdates=Einmal täglich nach neuen Versionen suchen (kontaktiert github.com)
+pt.CheckUpdates=Procurar novas versões uma vez por dia (consulta github.com)
+it.CheckUpdates=Cerca nuove versioni una volta al giorno (contatta github.com)
 en.StatusPrinter=Installing Ghostscript and creating the PDF Light printer...
 es.StatusPrinter=Instalando Ghostscript y creando la impresora PDF Light...
 fr.StatusPrinter=Installation de Ghostscript et création de l'imprimante PDF Light...
@@ -72,8 +78,13 @@ Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 ; Entrada por usuario que dejaba la versión 0.1.
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "PDFLight"; Flags: deletevalue dontcreatekey
 
+[Tasks]
+; La consulta a GitHub se anuncia aquí y se puede desactivar; después se cambia en Opciones.
+Name: "updates"; Description: "{cm:CheckUpdates}"
+
 [Run]
-Filename: "{app}\pdflight.exe"; Parameters: "--welcome"; Flags: nowait runasoriginaluser
+Filename: "{app}\pdflight.exe"; Parameters: "--welcome"; Flags: nowait runasoriginaluser; Tasks: updates
+Filename: "{app}\pdflight.exe"; Parameters: "--welcome --no-update-check"; Flags: nowait runasoriginaluser; Tasks: not updates
 
 [UninstallRun]
 Filename: "{sys}\taskkill.exe"; Parameters: "/f /im pdflight.exe"; Flags: runhidden; RunOnceId: "CerrarApp"

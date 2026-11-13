@@ -10,6 +10,7 @@ printer and save the result as a PDF.
 - Optional password to open the PDF.
 - Optional automatic saving, without asking, with a file name pattern (`{title}`, `{date}`, `{time}`).
 - A single executable of about 400 KB written in Rust, with no runtime; it lives in the system tray.
+- Tells you when a new version is available (optional).
 - Interface in English, Spanish, French, German, Portuguese (Brazil) and Italian. It follows the
   Windows display language and can be changed in Options (tray menu).
 
@@ -33,8 +34,16 @@ Ghostscript stays installed; uninstall it separately from the same place.
 
 ## Privacy
 
-PDF Light does not send any data to other systems: it has no telemetry and does not check for
-updates. Settings are stored in `%AppData%\PDFLight\settings.json`.
+PDF Light has no telemetry and never sends your documents, their names or any setting anywhere.
+
+The only network request it makes is to check for a new version: once a day (and one minute after
+starting) it asks `api.github.com` for the latest release of this project. That request carries the
+application name and version, and GitHub sees the computer's IP address, as with any web request.
+If there is a newer version it shows a notification and a tray menu entry that open the download
+page; it never downloads or installs anything by itself. You can turn the check off during
+installation or later in Options.
+
+Settings are stored in `%AppData%\PDFLight\settings.json`.
 
 ## Limitations
 

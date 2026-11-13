@@ -10,6 +10,7 @@ impresora **PDF Light** y guarda el resultado como PDF.
 - Contraseña opcional para abrir el PDF.
 - Guardado automático opcional, sin preguntar, con patrón de nombre (`{title}`, `{date}`, `{time}`).
 - Un ejecutable de unos 400 KB escrito en Rust, sin runtime; vive en la bandeja del sistema.
+- Avisa cuando hay una versión nueva (opcional).
 - Interfaz en inglés, español, francés, alemán, portugués (Brasil) e italiano. Sigue el idioma
   de Windows y se puede cambiar en Opciones (menú de la bandeja).
 
@@ -34,7 +35,15 @@ automático. Ghostscript se queda instalado; se desinstala aparte desde el mismo
 
 ## Privacidad
 
-PDF Light no envía ningún dato a otros sistemas: no tiene telemetría ni comprueba actualizaciones.
+PDF Light no tiene telemetría y nunca envía a ningún sitio tus documentos, sus nombres ni tus ajustes.
+
+La única petición de red que hace es para saber si hay una versión nueva: una vez al día (y al
+minuto de arrancar) pregunta a `api.github.com` cuál es la última versión de este proyecto. Esa
+petición lleva el nombre y la versión de la aplicación, y GitHub ve la dirección IP del equipo, como
+en cualquier petición web. Si hay una versión posterior, muestra un aviso y una entrada en el menú de
+la bandeja que abren la página de descarga; nunca descarga ni instala nada por su cuenta. La consulta
+se puede desactivar durante la instalación o después en Opciones.
+
 Los ajustes se guardan en `%AppData%\PDFLight\settings.json`.
 
 ## Limitaciones

@@ -3,6 +3,7 @@
 
 mod i18n;
 mod logic;
+mod update;
 
 use i18n::{fill, t};
 use logic::{ConvertError, Job, Settings};
@@ -42,6 +43,7 @@ const IDO_LANGUAGE: i32 = 202;
 const IDO_LBL_PATTERN: i32 = 203;
 const IDO_PATTERN: i32 = 204;
 const IDO_HELP: i32 = 205;
+const IDO_UPDATES: i32 = 207;
 const IDM_OPTIONS: i32 = 206; // orden «Opciones» del menú de la bandeja
 const IDC_UP: i32 = 114;
 const IDC_DOWN: i32 = 115;
@@ -51,6 +53,9 @@ const ID_CLOSE: i32 = 2; // IDCANCEL (Esc)
 
 const WM_TRAY: u32 = WM_APP + 1;
 const WM_DONE: u32 = WM_APP + 2;
+const WM_UPDATE: u32 = WM_APP + 3;
+const TIMER_SPOOL: usize = 1;
+const TIMER_UPDATE: usize = 2;
 
 struct App {
     settings: Settings,
@@ -58,6 +63,10 @@ struct App {
     busy: bool,
     options_open: bool,
     taskbar_created: u32,
+    /// Versión nueva encontrada en GitHub, si la hay.
+    update: Option<String>,
+    /// El último globo mostrado es el de la versión nueva: pulsarlo abre la página de descarga.
+    balloon_is_update: bool,
 }
 
 /// Resultado de una conversión, enviado del hilo de trabajo a la ventana con WM_DONE.
@@ -69,7 +78,7 @@ struct Done {
 }
 
 thread_local! {
-    static APP: RefCell<App> = RefCell::new(App { settings: Settings::load(), jobs: Vec::new(), busy: false, options_open: false, taskbar_created: 0 });
+    static APP: RefCell<App> = RefCell::new(App { settings: Settings::load(), jobs: Vec::new(), busy: false, options_open: false, taskbar_created: 0, update: None, balloon_is_update: false });
 }
 
 /// Acceso corto al estado. No llamar a nada modal (MessageBox, menús) dentro de `f`:
@@ -125,13 +134,26 @@ unsafe extern "system" fn dlg_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 if std::env::args().any(|a| a == "--welcome") {
                     tray(hwnd, NIM_MODIFY, Some((t().ready_title, t().ready_text, false)));
                 }
-                SetTimer(hwnd, 1, 400, None);
+                // El instalador pasa --no-update-check si se desmarca la casilla de buscar versiones nuevas.
+                if std::env::args().any(|a| a == "--no-update-check") {
+                    app(|a| {
+                        a.settings.check_updates = false;
+                        a.settings.save();
+                    });
+                }
+                SetTimer(hwnd, TIMER_SPOOL, 400, None);
+                // Primera consulta al minuto de arrancar; después, una vez al día.
+                SetTimer(hwnd, TIMER_UPDATE, 60_000, None);
                 for job in logic::pending_jobs() {
                     on_job(hwnd, job);
                 }
                 return 1;
             }
             // NOTA: sondeo cada 400 ms de un único fichero; no hace falta vigilar la carpeta.
+            WM_TIMER if wparam == TIMER_UPDATE => {
+                SetTimer(hwnd, TIMER_UPDATE, 24 * 60 * 60 * 1000, None);
+                check_updates(hwnd);
+            }
             WM_TIMER => {
                 static SEQ: AtomicU32 = AtomicU32::new(0);
                 let secs = std::time::UNIX_EPOCH.elapsed().map(|d| d.as_secs()).unwrap_or(0);
@@ -153,7 +175,16 @@ unsafe extern "system" fn dlg_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             },
             // Cerrar solo oculta: los trabajos pendientes siguen ahí (icono de la bandeja).
             WM_CLOSE => hide(hwnd),
+            WM_UPDATE => {
+                let version = *Box::from_raw(lparam as *mut String);
+                // Un solo aviso por versión mientras la app esté en marcha; la entrada del menú se queda.
+                if app(|a| a.update.replace(version.clone())) != Some(version.clone()) {
+                    tray(hwnd, NIM_MODIFY, Some((&fill(t().update_title, &[&version]), t().update_text, false)));
+                    app(|a| a.balloon_is_update = true);
+                }
+            }
             WM_TRAY => match lparam as u32 & 0xFFFF {
+                NIN_BALLOONUSERCLICK if app(|a| a.balloon_is_update) => open_releases(),
                 WM_LBUTTONDBLCLK => reveal(hwnd),
                 WM_RBUTTONUP => tray_menu(hwnd),
                 _ => {}
@@ -199,6 +230,26 @@ unsafe fn apply_texts(hwnd: HWND) {
     }
 }
 
+/// Pregunta a GitHub en un hilo aparte si hay versión nueva; si la hay, avisa con WM_UPDATE.
+unsafe fn check_updates(hwnd: HWND) {
+    if !app(|a| a.settings.check_updates) {
+        return;
+    }
+    let hwnd = hwnd as isize;
+    std::thread::spawn(move || {
+        // PDFLIGHT_VERSION permite probar el aviso haciéndose pasar por una versión antigua.
+        let current = std::env::var("PDFLIGHT_VERSION").unwrap_or_else(|_| env!("CARGO_PKG_VERSION").to_string());
+        if let Some(version) = update::check(PROJECT_URL, &current) {
+            let version = Box::into_raw(Box::new(version));
+            unsafe { PostMessageW(hwnd as HWND, WM_UPDATE, 0, version as isize) };
+        }
+    });
+}
+
+unsafe fn open_releases() {
+    unsafe { open(Path::new(&format!("{PROJECT_URL}/releases/latest"))) }
+}
+
 /// Fecha y hora locales para los nombres automáticos: ("AAAA-MM-DD", "HH-MM-SS").
 fn now() -> (String, String) {
     let mut t = unsafe { zeroed() };
@@ -230,6 +281,7 @@ unsafe extern "system" fn options_proc(hwnd: HWND, msg: u32, wparam: WPARAM, _lp
                     (IDO_LBL_LANGUAGE, t().opt_language),
                     (IDO_LBL_PATTERN, t().opt_pattern),
                     (IDO_HELP, t().opt_pattern_help),
+                    (IDO_UPDATES, t().opt_updates),
                     (ID_SAVE, t().ok),
                     (ID_CLOSE, t().cancel),
                 ] {
@@ -246,6 +298,7 @@ unsafe extern "system" fn options_proc(hwnd: HWND, msg: u32, wparam: WPARAM, _lp
                 let current = language.and_then(|l| i18n::LANGUAGES.iter().position(|(code, _)| l.eq_ignore_ascii_case(code))).map_or(0, |i| i + 1);
                 SendMessageW(combo, CB_SETCURSEL, current, 0);
                 set_text(hwnd, IDO_PATTERN, &pattern);
+                CheckDlgButton(hwnd, IDO_UPDATES, app(|a| a.settings.check_updates) as u32);
                 SetForegroundWindow(hwnd);
                 1
             }
@@ -253,9 +306,11 @@ unsafe extern "system" fn options_proc(hwnd: HWND, msg: u32, wparam: WPARAM, _lp
                 ID_SAVE => {
                     let choice = SendMessageW(GetDlgItem(hwnd, IDO_LANGUAGE), CB_GETCURSEL, 0, 0);
                     let pattern = get_text(hwnd, IDO_PATTERN).trim().to_string();
+                    let updates = IsDlgButtonChecked(hwnd, IDO_UPDATES) == BST_CHECKED;
                     app(|a| {
                         a.settings.language = (choice > 0).then(|| i18n::LANGUAGES[(choice as usize - 1).min(i18n::LANGUAGES.len() - 1)].0.to_string());
                         a.settings.auto_name_pattern = if pattern.is_empty() { "{title}".to_string() } else { pattern };
+                        a.settings.check_updates = updates;
                         a.settings.save();
                     });
                     EndDialog(hwnd, 1);
@@ -283,6 +338,7 @@ unsafe fn tray(hwnd: HWND, action: NOTIFY_ICON_MESSAGE, balloon: Option<(&str, &
         nid.hIcon = app_icon(SM_CXSMICON);
         copy_w("PDF Light", &mut nid.szTip);
         if let Some((title, text, error)) = balloon {
+            app(|a| a.balloon_is_update = false); // quien muestre el de versión nueva lo marca después
             nid.uFlags |= NIF_INFO;
             copy_w(title, &mut nid.szInfoTitle);
             copy_w(text, &mut nid.szInfo);
@@ -304,6 +360,10 @@ unsafe fn tray_menu(hwnd: HWND) {
     unsafe {
         let auto = app(|a| a.settings.auto_save);
         let menu = CreatePopupMenu();
+        if let Some(version) = app(|a| a.update.clone()) {
+            AppendMenuW(menu, MF_STRING, 7, w(&fill(t().tray_update, &[&version])).as_ptr());
+            AppendMenuW(menu, MF_SEPARATOR, 0, null());
+        }
         AppendMenuW(menu, MF_STRING, 1, w(t().tray_pending).as_ptr());
         AppendMenuW(menu, MF_STRING, 2, w(t().tray_open_folder).as_ptr());
         AppendMenuW(menu, MF_STRING | if auto { MF_CHECKED } else { 0 }, 3, w(t().tray_auto).as_ptr());
@@ -332,6 +392,7 @@ unsafe fn tray_menu(hwnd: HWND) {
             6 => {
                 PostMessageW(hwnd, WM_COMMAND, IDM_OPTIONS as usize, 0);
             }
+            7 => open_releases(),
             5 => {
                 let text = fill(t().about, &[env!("CARGO_PKG_VERSION"), PROJECT_URL]);
                 if message(hwnd, &text, MB_YESNO | MB_ICONINFORMATION | MB_SETFOREGROUND) == IDYES {

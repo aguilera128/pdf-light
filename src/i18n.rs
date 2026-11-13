@@ -61,6 +61,12 @@ pub struct Strings {
     pub opt_pattern_help: &'static str,
     pub ok: &'static str,
     pub cancel: &'static str,
+    pub opt_updates: &'static str,
+    /// `{}` = versión nueva.
+    pub update_title: &'static str,
+    pub update_text: &'static str,
+    /// `{}` = versión nueva.
+    pub tray_update: &'static str,
 }
 
 /// Sustituye cada `{}` de `template` por el argumento que toca.
@@ -168,6 +174,10 @@ static EN: Strings = Strings {
     opt_pattern_help: "You can use {title}, {date} and {time}.",
     ok: "OK",
     cancel: "Cancel",
+    opt_updates: "Check for new versions once a day (contacts github.com)",
+    update_title: "PDF Light {} is available",
+    update_text: "Click here or use the tray menu to download it.",
+    tray_update: "Download version {}",
 };
 
 static ES: Strings = Strings {
@@ -223,6 +233,10 @@ static ES: Strings = Strings {
     opt_pattern_help: "Puedes usar {title}, {date} y {time}.",
     ok: "Aceptar",
     cancel: "Cancelar",
+    opt_updates: "Buscar versiones nuevas una vez al día (consulta github.com)",
+    update_title: "PDF Light {} está disponible",
+    update_text: "Haz clic aquí o usa el menú de la bandeja para descargarla.",
+    tray_update: "Descargar la versión {}",
 };
 
 static FR: Strings = Strings {
@@ -278,6 +292,10 @@ static FR: Strings = Strings {
     opt_pattern_help: "Vous pouvez utiliser {title}, {date} et {time}.",
     ok: "OK",
     cancel: "Annuler",
+    opt_updates: "Rechercher les nouvelles versions une fois par jour (contacte github.com)",
+    update_title: "PDF Light {} est disponible",
+    update_text: "Cliquez ici ou utilisez le menu de la zone de notification pour la télécharger.",
+    tray_update: "Télécharger la version {}",
 };
 
 static DE: Strings = Strings {
@@ -333,6 +351,10 @@ static DE: Strings = Strings {
     opt_pattern_help: "Sie können {title}, {date} und {time} verwenden.",
     ok: "OK",
     cancel: "Abbrechen",
+    opt_updates: "Einmal täglich nach neuen Versionen suchen (kontaktiert github.com)",
+    update_title: "PDF Light {} ist verfügbar",
+    update_text: "Klicken Sie hier oder verwenden Sie das Infobereich-Menü, um sie herunterzuladen.",
+    tray_update: "Version {} herunterladen",
 };
 
 // Portugués de Brasil.
@@ -389,6 +411,10 @@ static PT: Strings = Strings {
     opt_pattern_help: "Você pode usar {title}, {date} e {time}.",
     ok: "OK",
     cancel: "Cancelar",
+    opt_updates: "Procurar novas versões uma vez por dia (consulta github.com)",
+    update_title: "O PDF Light {} está disponível",
+    update_text: "Clique aqui ou use o menu da bandeja para baixá-lo.",
+    tray_update: "Baixar a versão {}",
 };
 
 static IT: Strings = Strings {
@@ -444,6 +470,10 @@ static IT: Strings = Strings {
     opt_pattern_help: "Puoi usare {title}, {date} e {time}.",
     ok: "OK",
     cancel: "Annulla",
+    opt_updates: "Cerca nuove versioni una volta al giorno (contatta github.com)",
+    update_title: "PDF Light {} è disponibile",
+    update_text: "Fai clic qui o usa il menu dell'area di notifica per scaricarla.",
+    tray_update: "Scarica la versione {}",
 };
 
 #[cfg(test)]
@@ -468,6 +498,8 @@ mod tests {
             assert_eq!(l.err_mkdir.matches("{}").count(), 1);
             assert_eq!(l.err_write.matches("{}").count(), 2);
             assert_eq!(l.about.matches("{}").count(), 2);
+            assert_eq!(l.update_title.matches("{}").count(), 1);
+            assert_eq!(l.tray_update.matches("{}").count(), 1);
         }
     }
 }
