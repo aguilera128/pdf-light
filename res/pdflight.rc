@@ -27,18 +27,20 @@ STYLE DS_SETFONT | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEB
 CAPTION "PDF Light"
 FONT 9, "Segoe UI"
 BEGIN
-    LTEXT "Trabajos pendientes. Selecciona varios (Ctrl o Mayús) para unirlos en un solo PDF.", -1, 7, 7, 286, 10
-    LISTBOX 101, 7, 20, 286, 80, LBS_NOTIFY | LBS_EXTENDEDSEL | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_BORDER | WS_TABSTOP
-    LTEXT "&Nombre", -1, 7, 108, 34, 10
-    EDITTEXT 102, 44, 106, 226, 13, ES_AUTOHSCROLL | WS_TABSTOP
+    // Textos en inglés solo como reserva: src/main.rs los sustituye por los de src/i18n.rs.
+    // Los anchos dejan sitio para el idioma más largo (alemán).
+    LTEXT "Pending jobs.", 110, 7, 6, 286, 18
+    LISTBOX 101, 7, 27, 286, 73, LBS_NOTIFY | LBS_EXTENDEDSEL | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_BORDER | WS_TABSTOP
+    LTEXT "&Name", 111, 7, 108, 42, 10
+    EDITTEXT 102, 52, 106, 218, 13, ES_AUTOHSCROLL | WS_TABSTOP
     LTEXT ".pdf", -1, 274, 108, 19, 10
-    LTEXT "&Carpeta", -1, 7, 126, 34, 10
-    EDITTEXT 103, 44, 124, 190, 13, ES_AUTOHSCROLL | WS_TABSTOP
-    PUSHBUTTON "E&xaminar...", 104, 238, 123, 55, 15
-    LTEXT "C&alidad", -1, 7, 144, 34, 10
-    COMBOBOX 105, 44, 142, 190, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    AUTOCHECKBOX "A&brir el PDF al terminar", 106, 44, 161, 220, 10
-    AUTOCHECKBOX "&Guardar sin preguntar a partir de ahora (en esta carpeta)", 107, 44, 174, 249, 10
-    PUSHBUTTON "&Descartar", 108, 158, 191, 60, 15
-    DEFPUSHBUTTON "Guardar", 1, 223, 191, 70, 15
+    LTEXT "&Folder", 112, 7, 126, 42, 10
+    EDITTEXT 103, 52, 124, 180, 13, ES_AUTOHSCROLL | WS_TABSTOP
+    PUSHBUTTON "&Browse...", 104, 236, 123, 57, 15
+    LTEXT "&Quality", 113, 7, 144, 42, 10
+    COMBOBOX 105, 52, 142, 180, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    AUTOCHECKBOX "&Open the PDF when done", 106, 52, 161, 241, 10
+    AUTOCHECKBOX "Save &without asking", 107, 52, 174, 241, 10
+    PUSHBUTTON "&Discard", 108, 139, 191, 62, 15
+    DEFPUSHBUTTON "Save", 1, 205, 191, 88, 15
 END

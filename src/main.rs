@@ -1,9 +1,11 @@
 //! PDF Light: icono de bandeja + diálogo de guardado. Interfaz Win32 pura (plantilla en res/pdflight.rc).
 #![windows_subsystem = "windows"]
 
+mod i18n;
 mod logic;
 
-use logic::{Job, Settings};
+use i18n::{fill, t};
+use logic::{ConvertError, Job, Settings};
 use std::cell::RefCell;
 use std::mem::{size_of, zeroed};
 use std::path::{Path, PathBuf};
@@ -27,6 +29,10 @@ const IDC_QUALITY: i32 = 105;
 const IDC_OPEN: i32 = 106;
 const IDC_AUTO: i32 = 107;
 const IDC_DISCARD: i32 = 108;
+const IDC_INTRO: i32 = 110;
+const IDC_LBL_NAME: i32 = 111;
+const IDC_LBL_FOLDER: i32 = 112;
+const IDC_LBL_QUALITY: i32 = 113;
 const ID_SAVE: i32 = 1; // IDOK
 const ID_CLOSE: i32 = 2; // IDCANCEL (Esc)
 
@@ -44,7 +50,7 @@ struct App {
 struct Done {
     jobs: Vec<Job>,
     target: PathBuf,
-    result: Result<(), String>,
+    result: Result<(), ConvertError>,
     auto: bool,
 }
 
@@ -76,6 +82,7 @@ fn main() {
             return; // ya hay una instancia vigilando la cola
         }
         CoInitializeEx(null(), COINIT_APARTMENTTHREADED as u32);
+        i18n::init(app(|a| a.settings.language.clone()).as_deref());
         let hwnd = CreateDialogParamW(GetModuleHandleW(null()), 1 as *const u16, null_mut(), Some(dlg_proc), 0);
         if hwnd.is_null() {
             return;
@@ -95,8 +102,22 @@ unsafe extern "system" fn dlg_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
         match msg {
             WM_INITDIALOG => {
                 let combo = GetDlgItem(hwnd, IDC_QUALITY);
-                for (_, label) in logic::QUALITIES {
+                for label in t().qualities {
                     SendMessageW(combo, CB_ADDSTRING, 0, w(label).as_ptr() as isize);
+                }
+                // La plantilla del .rc va en inglés; aquí se pone el idioma elegido.
+                for (id, text) in [
+                    (IDC_INTRO, t().intro),
+                    (IDC_LBL_NAME, t().name),
+                    (IDC_LBL_FOLDER, t().folder),
+                    (IDC_LBL_QUALITY, t().quality),
+                    (IDC_BROWSE, t().browse),
+                    (IDC_OPEN, t().open_after),
+                    (IDC_AUTO, t().auto_save),
+                    (IDC_DISCARD, t().discard),
+                    (ID_SAVE, t().save),
+                ] {
+                    set_text(hwnd, id, text);
                 }
                 sync_from_settings(hwnd);
                 SendMessageW(hwnd, WM_SETICON, ICON_SMALL as usize, app_icon(SM_CXSMICON) as isize);
@@ -178,11 +199,11 @@ unsafe fn tray_menu(hwnd: HWND) {
     unsafe {
         let auto = app(|a| a.settings.auto_save);
         let menu = CreatePopupMenu();
-        AppendMenuW(menu, MF_STRING, 1, w("Trabajos pendientes").as_ptr());
-        AppendMenuW(menu, MF_STRING, 2, w("Abrir carpeta de salida").as_ptr());
-        AppendMenuW(menu, MF_STRING | if auto { MF_CHECKED } else { 0 }, 3, w("Guardar sin preguntar").as_ptr());
+        AppendMenuW(menu, MF_STRING, 1, w(t().tray_pending).as_ptr());
+        AppendMenuW(menu, MF_STRING, 2, w(t().tray_open_folder).as_ptr());
+        AppendMenuW(menu, MF_STRING | if auto { MF_CHECKED } else { 0 }, 3, w(t().tray_auto).as_ptr());
         AppendMenuW(menu, MF_SEPARATOR, 0, null());
-        AppendMenuW(menu, MF_STRING, 4, w("Salir").as_ptr());
+        AppendMenuW(menu, MF_STRING, 4, w(t().tray_exit).as_ptr());
         let mut pt: POINT = zeroed();
         GetCursorPos(&mut pt);
         SetForegroundWindow(hwnd); // sin esto el menú no se cierra al pulsar fuera
@@ -235,7 +256,7 @@ unsafe fn sync_from_settings(hwnd: HWND) {
     unsafe {
         let s = app(|a| a.settings.clone());
         set_text(hwnd, IDC_FOLDER, &s.output_folder);
-        let quality = logic::QUALITIES.iter().position(|q| q.0 == s.quality).unwrap_or(1);
+        let quality = logic::QUALITIES.iter().position(|q| *q == s.quality).unwrap_or(1);
         SendMessageW(GetDlgItem(hwnd, IDC_QUALITY), CB_SETCURSEL, quality, 0);
         CheckDlgButton(hwnd, IDC_OPEN, s.open_after_save as u32);
         CheckDlgButton(hwnd, IDC_AUTO, s.auto_save as u32);
@@ -282,7 +303,7 @@ unsafe fn refresh_list(hwnd: HWND) {
         let list = GetDlgItem(hwnd, IDC_LIST);
         SendMessageW(list, LB_RESETCONTENT, 0, 0);
         for title in app(|a| a.jobs.iter().map(|j| j.title.clone()).collect::<Vec<_>>()) {
-            let label = if title.is_empty() { "(sin título)".to_string() } else { title };
+            let label = if title.is_empty() { t().untitled.to_string() } else { title };
             SendMessageW(list, LB_ADDSTRING, 0, w(&label).as_ptr() as isize);
         }
         SendMessageW(list, LB_SETSEL, 1, 0);
@@ -299,15 +320,15 @@ unsafe fn selection_changed(hwnd: HWND) {
         EnableWindow(GetDlgItem(hwnd, IDC_DISCARD), enabled);
         EnableWindow(GetDlgItem(hwnd, IDC_LIST), !busy as i32);
         let label = if busy {
-            "Guardando...".to_string()
+            t().saving.to_string()
         } else if sel.len() > 1 {
-            format!("Unir y guardar ({})", sel.len())
+            fill(t().merge_save, &[&sel.len().to_string()])
         } else {
-            "Guardar".to_string()
+            t().save.to_string()
         };
         set_text(hwnd, ID_SAVE, &label);
         if let Some(title) = sel.first().and_then(|&i| app(|a| a.jobs.get(i).map(|j| j.title.clone()))) {
-            set_text(hwnd, IDC_NAME, &logic::file_name_from_title(&title));
+            set_text(hwnd, IDC_NAME, &logic::file_name_from_title(&title, t().default_name));
         }
     }
 }
@@ -317,7 +338,7 @@ unsafe fn on_job(hwnd: HWND, job: Job) {
     unsafe {
         if app(|a| a.settings.auto_save) {
             let folder = app(|a| a.settings.output_folder.clone());
-            let name = logic::file_name_from_title(&job.title);
+            let name = logic::file_name_from_title(&job.title, t().default_name);
             let target = logic::unique_path(Path::new(&folder).join(format!("{name}.pdf")));
             spawn_convert(hwnd, vec![job], target, name, true);
         } else {
@@ -336,7 +357,7 @@ unsafe fn add_to_list(hwnd: HWND, job: Job) {
             refresh_list(hwnd);
         } else {
             // No se toca la selección: el usuario puede estar a medias de elegir.
-            let label = if job.title.is_empty() { "(sin título)" } else { &job.title };
+            let label = if job.title.is_empty() { t().untitled } else { &job.title };
             SendMessageW(GetDlgItem(hwnd, IDC_LIST), LB_ADDSTRING, 0, w(label).as_ptr() as isize);
         }
         reveal(hwnd);
@@ -362,7 +383,7 @@ unsafe fn on_done(hwnd: HWND, done: Done) {
             app(|a| a.busy = false);
         }
         match (&done.result, done.auto) {
-            (Ok(()), true) => tray(hwnd, NIM_MODIFY, Some(("PDF guardado", &done.target.to_string_lossy(), false))),
+            (Ok(()), true) => tray(hwnd, NIM_MODIFY, Some((t().saved, &done.target.to_string_lossy(), false))),
             (Ok(()), false) => {
                 let left = app(|a| {
                     a.jobs.retain(|j| !done.jobs.iter().any(|d| d.ps == j.ps));
@@ -378,17 +399,27 @@ unsafe fn on_done(hwnd: HWND, done: Done) {
                 for job in done.jobs.iter().cloned() {
                     add_to_list(hwnd, job);
                 }
-                tray(hwnd, NIM_MODIFY, Some(("No se pudo guardar automáticamente", e, true)));
+                tray(hwnd, NIM_MODIFY, Some((t().auto_failed, &error_text(e), true)));
             }
             (Err(e), false) => {
                 // Los trabajos siguen en la lista: se puede reintentar.
                 selection_changed(hwnd);
-                message(hwnd, &format!("No se pudo crear el PDF.\n\n{e}"), MB_OK | MB_ICONERROR);
+                message(hwnd, &format!("{}\n\n{}", t().create_failed, error_text(e)), MB_OK | MB_ICONERROR);
             }
         }
         if done.result.is_ok() && open_after {
             open(&done.target);
         }
+    }
+}
+
+fn error_text(e: &ConvertError) -> String {
+    match e {
+        ConvertError::NoGhostscript => t().err_no_gs.to_string(),
+        ConvertError::Launch(error) => fill(t().err_launch, &[error]),
+        ConvertError::Failed { status, log } => fill(t().err_gs_failed, &[status, log]),
+        ConvertError::CreateDir(error) => fill(t().err_mkdir, &[error]),
+        ConvertError::Write { path, error } => fill(t().err_write, &[path, error]),
     }
 }
 
@@ -404,17 +435,17 @@ unsafe fn save(hwnd: HWND) {
             name = name[..name.len() - 4].trim_end();
         }
         if !logic::is_valid_file_name(name) {
-            message(hwnd, "El nombre está vacío o tiene caracteres no válidos (\\ / : * ? \" < > |).", MB_OK | MB_ICONWARNING);
+            message(hwnd, t().invalid_name, MB_OK | MB_ICONWARNING);
             return;
         }
         let folder = get_text(hwnd, IDC_FOLDER).trim().to_string();
         if !Path::new(&folder).is_absolute() {
-            message(hwnd, "Indica una carpeta con ruta completa.", MB_OK | MB_ICONWARNING);
+            message(hwnd, t().invalid_folder, MB_OK | MB_ICONWARNING);
             return;
         }
         let target = Path::new(&folder).join(format!("{name}.pdf"));
         if target.exists()
-            && message(hwnd, &format!("«{name}.pdf» ya existe. ¿Sustituirlo?"), MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) != IDYES
+            && message(hwnd, &fill(t().exists, &[&format!("{name}.pdf")]), MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) != IDYES
         {
             return;
         }
@@ -423,7 +454,7 @@ unsafe fn save(hwnd: HWND) {
         let auto = IsDlgButtonChecked(hwnd, IDC_AUTO) == BST_CHECKED;
         let jobs = app(|a| {
             a.settings.output_folder = folder;
-            a.settings.quality = logic::QUALITIES[quality.min(logic::QUALITIES.len() - 1)].0.to_string();
+            a.settings.quality = logic::QUALITIES[quality.min(logic::QUALITIES.len() - 1)].to_string();
             a.settings.open_after_save = open_after;
             a.settings.auto_save = auto;
             a.settings.save();
@@ -443,8 +474,8 @@ unsafe fn discard(hwnd: HWND) {
         if sel.is_empty() || app(|a| a.busy) {
             return;
         }
-        let what = if sel.len() == 1 { "el trabajo seleccionado".to_string() } else { format!("{} trabajos", sel.len()) };
-        if message(hwnd, &format!("¿Descartar {what}? No se puede deshacer."), MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) != IDYES {
+        let question = if sel.len() == 1 { t().discard_one.to_string() } else { fill(t().discard_many, &[&sel.len().to_string()]) };
+        if message(hwnd, &question, MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) != IDYES {
             return;
         }
         let left = app(|a| {
@@ -465,7 +496,7 @@ unsafe fn discard(hwnd: HWND) {
 unsafe fn browse(hwnd: HWND) {
     unsafe {
         // NOTA: selector de carpetas clásico (limitado a MAX_PATH); pasar a IFileOpenDialog si se queda corto.
-        let title = w("Carpeta donde guardar los PDF");
+        let title = w(t().browse_title);
         let mut bi: BROWSEINFOW = zeroed();
         bi.hwndOwner = hwnd;
         bi.lpszTitle = title.as_ptr();

@@ -1,54 +1,62 @@
 # PDF Light
 
-Impresora virtual a PDF para Windows 10 y 11 (64 bits). Imprime desde cualquier programa en la
-impresora **PDF Light** y guarda el resultado como PDF.
+[Español](README.es.md)
 
-- Ventana de guardado con nombre, carpeta y calidad.
-- Une varios trabajos de impresión en un solo PDF.
-- Guardado automático sin preguntar.
-- Un ejecutable de unos 330 KB escrito en Rust, sin runtime; vive en la bandeja del sistema.
+A virtual PDF printer for Windows 10 and 11 (64-bit). Print from any program to the **PDF Light**
+printer and save the result as a PDF.
 
-## Instalar
+- Save window with name, folder and quality.
+- Merges several print jobs into a single PDF.
+- Optional automatic saving, without asking.
+- A single executable of about 400 KB written in Rust, with no runtime; it lives in the system tray.
+- Interface in English, Spanish, French, German, Portuguese (Brazil) and Italian. It follows the
+  Windows display language.
 
-Descarga `PDFLight-Setup-<versión>.exe` de la página de versiones y ejecútalo. Pide permisos de
-administrador y hace estos cambios en el equipo:
+## Install
 
-- Copia la aplicación a `C:\Program Files\PDF Light`.
-- Instala Ghostscript 10.08.0 en `C:\Program Files\gs` si el equipo no lo tiene.
-- Crea la impresora «PDF Light» (driver `MS Publisher Color Printer` de Windows) con un puerto local
-  al fichero `C:\ProgramData\PDFLight\spool\trabajo.ps`.
-- Hace que PDF Light arranque al iniciar sesión (`HKLM\...\Run`).
+Download `PDFLight-Setup-<version>.exe` from the releases page and run it. It asks for
+administrator rights and makes these changes to the computer:
 
-El instalador no está firmado, así que Windows SmartScreen mostrará un aviso: «Más información» →
-«Ejecutar de todas formas».
+- Copies the application to `C:\Program Files\PDF Light`.
+- Installs Ghostscript 10.08.0 to `C:\Program Files\gs` if the computer does not have it.
+- Creates the “PDF Light” printer (Windows `MS Publisher Color Printer` driver) with a local port
+  that writes to `C:\ProgramData\PDFLight\spool\trabajo.ps`.
+- Makes PDF Light start when you sign in (`HKLM\...\Run`).
 
-## Desinstalar
+The installer is not signed, so Windows SmartScreen will show a warning: “More info” → “Run anyway”.
 
-Desde «Aplicaciones instaladas» de Windows. Quita la aplicación, la impresora y el arranque
-automático. Ghostscript se queda instalado; se desinstala aparte desde el mismo sitio.
+## Uninstall
 
-## Privacidad
+From “Installed apps” in Windows. It removes the application, the printer and the automatic start.
+Ghostscript stays installed; uninstall it separately from the same place.
 
-PDF Light no envía ningún dato a otros sistemas: no tiene telemetría ni comprueba actualizaciones.
-Los ajustes se guardan en `%AppData%\PDFLight\settings.json`.
+## Privacy
 
-## Limitaciones
+PDF Light does not send any data to other systems: it has no telemetry and does not check for
+updates. Settings are stored in `%AppData%\PDFLight\settings.json`.
 
-- La aplicación tiene que estar en marcha: si no lo está, solo se conserva el último trabajo impreso.
-- Pensada para un usuario por equipo a la vez (la carpeta de trabajos es común).
+To force a language, add `"Language": "en"` (or `es`, `fr`, `de`, `pt`, `it`) to that file.
 
-## Compilar
+## Limitations
 
-Hacen falta Rust (toolchain MSVC) e Inno Setup 7.
+- The application has to be running: if it is not, only the last printed job is kept.
+- Meant for one user per computer at a time (the job folder is shared).
+- Document names are received in the system's ANSI code page, so characters outside it
+  (for example Japanese on a Western European system) arrive as `?`.
+
+## Build
+
+You need Rust (MSVC toolchain) and Inno Setup 7.
 
 ```powershell
 .\scripts\compilar.ps1
 ```
 
-Pasa los tests, compila, descarga el instalador oficial de Ghostscript a `vendor\` (comprobando su
-SHA-256) y deja el instalador en `dist\`.
+It runs the tests, builds, downloads the official Ghostscript installer to `vendor\` (checking its
+SHA-256) and leaves the installer in `dist\`.
 
-## Licencia
+## License
 
-PDF Light se distribuye bajo la [GNU Affero General Public License v3.0 o posterior](LICENSE).
-Incluye el instalador de Ghostscript, de Artifex Software; ver [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+PDF Light is distributed under the [GNU Affero General Public License v3.0 or later](LICENSE).
+It bundles the Ghostscript installer, by Artifex Software; see
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
