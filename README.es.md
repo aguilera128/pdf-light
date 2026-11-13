@@ -16,7 +16,8 @@ impresora **PDF Light** y guarda el resultado como PDF.
 
 ## Instalar
 
-Descarga `PDFLight-Setup-<versión>.exe` de la página de versiones y ejecútalo. Pide permisos de
+Descarga `PDFLight-Setup-<versión>.exe` de la
+[última versión](https://github.com/aguilera128/pdf-light/releases/latest) y ejecútalo. Pide permisos de
 administrador y hace estos cambios en el equipo:
 
 - Copia la aplicación a `C:\Program Files\PDF Light`.

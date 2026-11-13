@@ -16,7 +16,8 @@ printer and save the result as a PDF.
 
 ## Install
 
-Download `PDFLight-Setup-<version>.exe` from the releases page and run it. It asks for
+Download `PDFLight-Setup-<version>.exe` from the
+[latest release](https://github.com/aguilera128/pdf-light/releases/latest) and run it. It asks for
 administrator rights and makes these changes to the computer:
 
 - Copies the application to `C:\Program Files\PDF Light`.
