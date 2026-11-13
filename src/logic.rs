@@ -246,6 +246,28 @@ pub fn file_name_from_title(title: &str, fallback: &str) -> String {
     if clean.is_empty() { fallback.into() } else { clean }
 }
 
+/// Sube o baja un puesto los elementos seleccionados (índices en orden ascendente) y devuelve
+/// dónde quedan. Los que ya están en el borde, o detrás de otro seleccionado que no puede moverse,
+/// se quedan donde están.
+pub fn move_selected<T>(items: &mut [T], selected: &[usize], up: bool) -> Vec<usize> {
+    let mut is_selected = vec![false; items.len()];
+    for &i in selected {
+        if i < items.len() {
+            is_selected[i] = true;
+        }
+    }
+    let n = items.len();
+    let order: Box<dyn Iterator<Item = usize>> = if up { Box::new(1..n) } else { Box::new((0..n.saturating_sub(1)).rev()) };
+    for i in order {
+        let neighbour = if up { i - 1 } else { i + 1 };
+        if is_selected[i] && !is_selected[neighbour] {
+            items.swap(i, neighbour);
+            is_selected.swap(i, neighbour);
+        }
+    }
+    (0..n).filter(|&i| is_selected[i]).collect()
+}
+
 /// Devuelve `path`, o `path` con sufijo _1, _2... si ya existe.
 pub fn unique_path(path: PathBuf) -> PathBuf {
     if !path.exists() {
@@ -374,6 +396,20 @@ mod tests {
         assert_eq!(name("Ñandú.pdf"), "Ñandú");
         assert!(is_valid_file_name("a b"));
         assert!(!is_valid_file_name("a:b"));
+    }
+
+    #[test]
+    fn reorder() {
+        let mut v = vec!['a', 'b', 'c', 'd'];
+        assert_eq!(move_selected(&mut v, &[2], true), [1]);
+        assert_eq!(v, ['a', 'c', 'b', 'd']);
+        assert_eq!(move_selected(&mut v, &[0, 1], true), [0, 1]); // ya están arriba del todo
+        assert_eq!(v, ['a', 'c', 'b', 'd']);
+        assert_eq!(move_selected(&mut v, &[0, 2], false), [1, 3]);
+        assert_eq!(v, ['c', 'a', 'd', 'b']);
+        assert_eq!(move_selected(&mut v, &[3], false), [3]);
+        assert_eq!(move_selected(&mut v, &[9], true), Vec::<usize>::new());
+        assert_eq!(move_selected(&mut Vec::<char>::new(), &[], false), Vec::<usize>::new());
     }
 
     #[test]

@@ -73,7 +73,7 @@ Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "PDFLight"; Flags: deletevalue dontcreatekey
 
 [Run]
-Filename: "{app}\pdflight.exe"; Flags: nowait runasoriginaluser
+Filename: "{app}\pdflight.exe"; Parameters: "--welcome"; Flags: nowait runasoriginaluser
 
 [UninstallRun]
 Filename: "{sys}\taskkill.exe"; Parameters: "/f /im pdflight.exe"; Flags: runhidden; RunOnceId: "CerrarApp"

@@ -6,7 +6,7 @@ A virtual PDF printer for Windows 10 and 11 (64-bit). Print from any program to 
 printer and save the result as a PDF.
 
 - Save window with name, folder and quality.
-- Merges several print jobs into a single PDF.
+- Merges several print jobs into a single PDF, in the order you choose.
 - Optional automatic saving, without asking.
 - A single executable of about 400 KB written in Rust, with no runtime; it lives in the system tray.
 - Interface in English, Spanish, French, German, Portuguese (Brazil) and Italian. It follows the

@@ -30,7 +30,9 @@ BEGIN
     // Textos en inglés solo como reserva: src/main.rs los sustituye por los de src/i18n.rs.
     // Los anchos dejan sitio para el idioma más largo (alemán).
     LTEXT "Pending jobs.", 110, 7, 6, 286, 18
-    LISTBOX 101, 7, 27, 286, 73, LBS_NOTIFY | LBS_EXTENDEDSEL | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_BORDER | WS_TABSTOP
+    LISTBOX 101, 7, 27, 262, 73, LBS_NOTIFY | LBS_EXTENDEDSEL | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_BORDER | WS_TABSTOP
+    PUSHBUTTON "^", 114, 273, 27, 20, 14
+    PUSHBUTTON "v", 115, 273, 44, 20, 14
     LTEXT "&Name", 111, 7, 108, 42, 10
     EDITTEXT 102, 52, 106, 218, 13, ES_AUTOHSCROLL | WS_TABSTOP
     LTEXT ".pdf", -1, 274, 108, 19, 10

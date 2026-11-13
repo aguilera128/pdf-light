@@ -45,6 +45,11 @@ pub struct Strings {
     pub err_mkdir: &'static str,
     /// `{}` = ruta, `{}` = error del sistema.
     pub err_write: &'static str,
+    pub tray_about: &'static str,
+    /// `{}` = versión, `{}` = dirección del proyecto. Termina con una pregunta de sí o no.
+    pub about: &'static str,
+    pub ready_title: &'static str,
+    pub ready_text: &'static str,
 }
 
 /// Sustituye cada `{}` de `template` por el argumento que toca.
@@ -132,6 +137,10 @@ static EN: Strings = Strings {
     err_gs_failed: "Ghostscript failed ({}).\n{}",
     err_mkdir: "Could not create the folder: {}",
     err_write: "Could not write \u{201C}{}\u{201D}: {}",
+    tray_about: "About PDF Light",
+    about: "PDF Light {}\n\nFree software under the GNU AGPL, version 3 or later.\nSource code: {}\n\nOpen the project page?",
+    ready_title: "PDF Light is ready",
+    ready_text: "Print to the \u{201C}PDF Light\u{201D} printer from any program.",
 };
 
 static ES: Strings = Strings {
@@ -173,6 +182,10 @@ static ES: Strings = Strings {
     err_gs_failed: "Ghostscript falló ({}).\n{}",
     err_mkdir: "No se pudo crear la carpeta: {}",
     err_write: "No se pudo escribir «{}»: {}",
+    tray_about: "Acerca de PDF Light",
+    about: "PDF Light {}\n\nSoftware libre bajo la GNU AGPL, versión 3 o posterior.\nCódigo fuente: {}\n\n¿Abrir la página del proyecto?",
+    ready_title: "PDF Light está listo",
+    ready_text: "Imprime en la impresora «PDF Light» desde cualquier programa.",
 };
 
 static FR: Strings = Strings {
@@ -214,6 +227,10 @@ static FR: Strings = Strings {
     err_gs_failed: "Ghostscript a échoué ({}).\n{}",
     err_mkdir: "Impossible de créer le dossier : {}",
     err_write: "Impossible d'écrire « {} » : {}",
+    tray_about: "À propos de PDF Light",
+    about: "PDF Light {}\n\nLogiciel libre sous licence GNU AGPL, version 3 ou ultérieure.\nCode source : {}\n\nOuvrir la page du projet ?",
+    ready_title: "PDF Light est prêt",
+    ready_text: "Imprimez sur l'imprimante « PDF Light » depuis n'importe quel programme.",
 };
 
 static DE: Strings = Strings {
@@ -255,6 +272,10 @@ static DE: Strings = Strings {
     err_gs_failed: "Ghostscript ist fehlgeschlagen ({}).\n{}",
     err_mkdir: "Der Ordner konnte nicht erstellt werden: {}",
     err_write: "\u{201E}{}\u{201C} konnte nicht geschrieben werden: {}",
+    tray_about: "Über PDF Light",
+    about: "PDF Light {}\n\nFreie Software unter der GNU AGPL, Version 3 oder später.\nQuellcode: {}\n\nProjektseite öffnen?",
+    ready_title: "PDF Light ist bereit",
+    ready_text: "Drucken Sie aus einem beliebigen Programm auf dem Drucker \u{201E}PDF Light\u{201C}.",
 };
 
 // Portugués de Brasil.
@@ -297,6 +318,10 @@ static PT: Strings = Strings {
     err_gs_failed: "O Ghostscript falhou ({}).\n{}",
     err_mkdir: "Não foi possível criar a pasta: {}",
     err_write: "Não foi possível gravar \u{201C}{}\u{201D}: {}",
+    tray_about: "Sobre o PDF Light",
+    about: "PDF Light {}\n\nSoftware livre sob a GNU AGPL, versão 3 ou posterior.\nCódigo-fonte: {}\n\nAbrir a página do projeto?",
+    ready_title: "O PDF Light está pronto",
+    ready_text: "Imprima na impressora \u{201C}PDF Light\u{201D} a partir de qualquer programa.",
 };
 
 static IT: Strings = Strings {
@@ -338,6 +363,10 @@ static IT: Strings = Strings {
     err_gs_failed: "Ghostscript non è riuscito ({}).\n{}",
     err_mkdir: "Impossibile creare la cartella: {}",
     err_write: "Impossibile scrivere «{}»: {}",
+    tray_about: "Informazioni su PDF Light",
+    about: "PDF Light {}\n\nSoftware libero con licenza GNU AGPL, versione 3 o successiva.\nCodice sorgente: {}\n\nAprire la pagina del progetto?",
+    ready_title: "PDF Light è pronto",
+    ready_text: "Stampa sulla stampante «PDF Light» da qualsiasi programma.",
 };
 
 #[cfg(test)]
@@ -361,6 +390,7 @@ mod tests {
             assert_eq!(l.err_gs_failed.matches("{}").count(), 2);
             assert_eq!(l.err_mkdir.matches("{}").count(), 1);
             assert_eq!(l.err_write.matches("{}").count(), 2);
+            assert_eq!(l.about.matches("{}").count(), 2);
         }
     }
 }

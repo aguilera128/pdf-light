@@ -33,7 +33,10 @@ const IDC_INTRO: i32 = 110;
 const IDC_LBL_NAME: i32 = 111;
 const IDC_LBL_FOLDER: i32 = 112;
 const IDC_LBL_QUALITY: i32 = 113;
+const IDC_UP: i32 = 114;
+const IDC_DOWN: i32 = 115;
 const ID_SAVE: i32 = 1; // IDOK
+const PROJECT_URL: &str = env!("CARGO_PKG_REPOSITORY");
 const ID_CLOSE: i32 = 2; // IDCANCEL (Esc)
 
 const WM_TRAY: u32 = WM_APP + 1;
@@ -116,6 +119,8 @@ unsafe extern "system" fn dlg_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                     (IDC_AUTO, t().auto_save),
                     (IDC_DISCARD, t().discard),
                     (ID_SAVE, t().save),
+                    (IDC_UP, "▲"),
+                    (IDC_DOWN, "▼"),
                 ] {
                     set_text(hwnd, id, text);
                 }
@@ -124,6 +129,10 @@ unsafe extern "system" fn dlg_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 SendMessageW(hwnd, WM_SETICON, ICON_BIG as usize, app_icon(SM_CXICON) as isize);
                 app(|a| a.taskbar_created = RegisterWindowMessageW(w("TaskbarCreated").as_ptr()));
                 tray(hwnd, NIM_ADD, None);
+                // El instalador arranca la app con --welcome: sin este aviso no se ve que haya pasado nada.
+                if std::env::args().any(|a| a == "--welcome") {
+                    tray(hwnd, NIM_MODIFY, Some((t().ready_title, t().ready_text, false)));
+                }
                 SetTimer(hwnd, 1, 400, None);
                 for job in logic::pending_jobs() {
                     on_job(hwnd, job);
@@ -144,6 +153,8 @@ unsafe extern "system" fn dlg_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 (ID_CLOSE, _) => hide(hwnd),
                 (IDC_BROWSE, _) => browse(hwnd),
                 (IDC_DISCARD, _) => discard(hwnd),
+                (IDC_UP, _) => move_jobs(hwnd, true),
+                (IDC_DOWN, _) => move_jobs(hwnd, false),
                 (IDC_LIST, LBN_SELCHANGE) => selection_changed(hwnd),
                 _ => return 0,
             },
@@ -203,6 +214,7 @@ unsafe fn tray_menu(hwnd: HWND) {
         AppendMenuW(menu, MF_STRING, 2, w(t().tray_open_folder).as_ptr());
         AppendMenuW(menu, MF_STRING | if auto { MF_CHECKED } else { 0 }, 3, w(t().tray_auto).as_ptr());
         AppendMenuW(menu, MF_SEPARATOR, 0, null());
+        AppendMenuW(menu, MF_STRING, 5, w(t().tray_about).as_ptr());
         AppendMenuW(menu, MF_STRING, 4, w(t().tray_exit).as_ptr());
         let mut pt: POINT = zeroed();
         GetCursorPos(&mut pt);
@@ -222,8 +234,26 @@ unsafe fn tray_menu(hwnd: HWND) {
             4 => {
                 DestroyWindow(hwnd);
             }
+            5 => {
+                let text = fill(t().about, &[env!("CARGO_PKG_VERSION"), PROJECT_URL]);
+                if message(hwnd, &text, MB_YESNO | MB_ICONINFORMATION | MB_SETFOREGROUND) == IDYES {
+                    open(Path::new(PROJECT_URL));
+                }
+            }
             _ => {}
         }
+    }
+}
+
+/// Sube o baja los trabajos seleccionados: el PDF unido sigue el orden de la lista.
+unsafe fn move_jobs(hwnd: HWND, up: bool) {
+    unsafe {
+        let sel = selected(hwnd);
+        if sel.is_empty() || app(|a| a.busy) {
+            return;
+        }
+        let moved = app(|a| logic::move_selected(&mut a.jobs, &sel, up));
+        refresh_list(hwnd, &moved);
     }
 }
 
@@ -297,8 +327,8 @@ unsafe fn selected(hwnd: HWND) -> Vec<usize> {
     }
 }
 
-/// Vuelve a pintar la lista desde `App::jobs` y selecciona el primero.
-unsafe fn refresh_list(hwnd: HWND) {
+/// Vuelve a pintar la lista desde `App::jobs` y deja seleccionados los índices de `select`.
+unsafe fn refresh_list(hwnd: HWND, select: &[usize]) {
     unsafe {
         let list = GetDlgItem(hwnd, IDC_LIST);
         SendMessageW(list, LB_RESETCONTENT, 0, 0);
@@ -306,7 +336,9 @@ unsafe fn refresh_list(hwnd: HWND) {
             let label = if title.is_empty() { t().untitled.to_string() } else { title };
             SendMessageW(list, LB_ADDSTRING, 0, w(&label).as_ptr() as isize);
         }
-        SendMessageW(list, LB_SETSEL, 1, 0);
+        for &i in select {
+            SendMessageW(list, LB_SETSEL, 1, i as isize);
+        }
         selection_changed(hwnd);
     }
 }
@@ -319,6 +351,8 @@ unsafe fn selection_changed(hwnd: HWND) {
         EnableWindow(GetDlgItem(hwnd, ID_SAVE), enabled);
         EnableWindow(GetDlgItem(hwnd, IDC_DISCARD), enabled);
         EnableWindow(GetDlgItem(hwnd, IDC_LIST), !busy as i32);
+        EnableWindow(GetDlgItem(hwnd, IDC_UP), enabled);
+        EnableWindow(GetDlgItem(hwnd, IDC_DOWN), enabled);
         let label = if busy {
             t().saving.to_string()
         } else if sel.len() > 1 {
@@ -354,7 +388,7 @@ unsafe fn add_to_list(hwnd: HWND, job: Job) {
             a.jobs.len() == 1
         });
         if first {
-            refresh_list(hwnd);
+            refresh_list(hwnd, &[0]);
         } else {
             // No se toca la selección: el usuario puede estar a medias de elegir.
             let label = if job.title.is_empty() { t().untitled } else { &job.title };
@@ -389,7 +423,7 @@ unsafe fn on_done(hwnd: HWND, done: Done) {
                     a.jobs.retain(|j| !done.jobs.iter().any(|d| d.ps == j.ps));
                     a.jobs.len()
                 });
-                refresh_list(hwnd);
+                refresh_list(hwnd, &[0]);
                 if left == 0 {
                     hide(hwnd);
                 }
@@ -486,7 +520,7 @@ unsafe fn discard(hwnd: HWND) {
             }
             a.jobs.len()
         });
-        refresh_list(hwnd);
+        refresh_list(hwnd, &[0]);
         if left == 0 {
             hide(hwnd);
         }

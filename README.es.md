@@ -6,7 +6,7 @@ Impresora virtual a PDF para Windows 10 y 11 (64 bits). Imprime desde cualquier 
 impresora **PDF Light** y guarda el resultado como PDF.
 
 - Ventana de guardado con nombre, carpeta y calidad.
-- Une varios trabajos de impresión en un solo PDF.
+- Une varios trabajos de impresión en un solo PDF, en el orden que elijas.
 - Guardado automático opcional, sin preguntar.
 - Un ejecutable de unos 400 KB escrito en Rust, sin runtime; vive en la bandeja del sistema.
 - Interfaz en inglés, español, francés, alemán, portugués (Brasil) e italiano. Sigue el idioma
