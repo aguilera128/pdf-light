@@ -19,6 +19,9 @@
 // Los identificadores coinciden con las constantes de src/main.rs.
 1 24 "pdflight.manifest"
 
+// El primer icono del ejecutable es el que muestra el Explorador.
+1 ICON "pdflight.ico"
+
 1 DIALOGEX 0, 0, 300, 212
 STYLE DS_SETFONT | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX
 CAPTION "PDF Light"

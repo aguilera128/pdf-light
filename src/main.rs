@@ -99,6 +99,8 @@ unsafe extern "system" fn dlg_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                     SendMessageW(combo, CB_ADDSTRING, 0, w(label).as_ptr() as isize);
                 }
                 sync_from_settings(hwnd);
+                SendMessageW(hwnd, WM_SETICON, ICON_SMALL as usize, app_icon(SM_CXSMICON) as isize);
+                SendMessageW(hwnd, WM_SETICON, ICON_BIG as usize, app_icon(SM_CXICON) as isize);
                 app(|a| a.taskbar_created = RegisterWindowMessageW(w("TaskbarCreated").as_ptr()));
                 tray(hwnd, NIM_ADD, None);
                 SetTimer(hwnd, 1, 400, None);
@@ -152,8 +154,7 @@ unsafe fn tray(hwnd: HWND, action: NOTIFY_ICON_MESSAGE, balloon: Option<(&str, &
         nid.uID = 1;
         nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
         nid.uCallbackMessage = WM_TRAY;
-        // NOTA: icono genérico de Windows; añadir un .ico propio al .rc cuando haya diseño.
-        nid.hIcon = LoadIconW(null_mut(), IDI_APPLICATION);
+        nid.hIcon = app_icon(SM_CXSMICON);
         copy_w("PDF Light", &mut nid.szTip);
         if let Some((title, text, error)) = balloon {
             nid.uFlags |= NIF_INFO;
@@ -162,6 +163,14 @@ unsafe fn tray(hwnd: HWND, action: NOTIFY_ICON_MESSAGE, balloon: Option<(&str, &
             nid.dwInfoFlags = if error { NIIF_ERROR } else { NIIF_INFO };
         }
         Shell_NotifyIconW(action, &nid);
+    }
+}
+
+/// Icono de la app (recurso 1 de res/pdflight.rc) al tamaño que pide el sistema.
+unsafe fn app_icon(metric: SYSTEM_METRICS_INDEX) -> HICON {
+    unsafe {
+        let size = GetSystemMetrics(metric);
+        LoadImageW(GetModuleHandleW(null()), 1 as *const u16, IMAGE_ICON, size, size, LR_SHARED)
     }
 }
 

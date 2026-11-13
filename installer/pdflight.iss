@@ -3,7 +3,7 @@
 ; Compilar:  ISCC.exe installer\pdflight.iss
 ; Salida:    dist\PDFLight-Setup-<versión>.exe
 
-#define AppVersion "0.3.0"
+#define AppVersion "0.3.1"
 ; Instalador oficial de Ghostscript (AGPL), empaquetado tal cual desde vendor\.
 #define GsFile "gs10080w64.exe"
 
@@ -22,6 +22,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
 WizardStyle=modern dynamic
 LicenseFile=..\LICENSE
+SetupIconFile=..\res\pdflight.ico
 OutputDir=..\dist
 OutputBaseFilename=PDFLight-Setup-{#AppVersion}
 UninstallDisplayIcon={app}\pdflight.exe
