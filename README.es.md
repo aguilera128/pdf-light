@@ -7,10 +7,11 @@ impresora **PDF Light** y guarda el resultado como PDF.
 
 - Ventana de guardado con nombre, carpeta y calidad.
 - Une varios trabajos de impresión en un solo PDF, en el orden que elijas.
-- Guardado automático opcional, sin preguntar.
+- Contraseña opcional para abrir el PDF.
+- Guardado automático opcional, sin preguntar, con patrón de nombre (`{title}`, `{date}`, `{time}`).
 - Un ejecutable de unos 400 KB escrito en Rust, sin runtime; vive en la bandeja del sistema.
 - Interfaz en inglés, español, francés, alemán, portugués (Brasil) e italiano. Sigue el idioma
-  de Windows.
+  de Windows y se puede cambiar en Opciones (menú de la bandeja).
 
 ## Instalar
 
@@ -36,10 +37,11 @@ automático. Ghostscript se queda instalado; se desinstala aparte desde el mismo
 PDF Light no envía ningún dato a otros sistemas: no tiene telemetría ni comprueba actualizaciones.
 Los ajustes se guardan en `%AppData%\PDFLight\settings.json`.
 
-Para forzar un idioma, añade `"Language": "es"` (o `en`, `fr`, `de`, `pt`, `it`) a ese fichero.
-
 ## Limitaciones
 
+- La contraseña usa RC4 de 128 bits (revisión 3 del cifrado PDF), lo más fuerte que ofrece
+  Ghostscript. Evita que el fichero se abra sin más; no te fíes de ella para documentos sensibles.
+  Admite hasta 32 caracteres sin acentos (ASCII).
 - La aplicación tiene que estar en marcha: si no lo está, solo se conserva el último trabajo impreso.
 - Pensada para un usuario por equipo a la vez (la carpeta de trabajos es común).
 - El nombre del documento llega en la página de códigos ANSI del sistema, así que los caracteres

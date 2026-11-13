@@ -1,7 +1,7 @@
 //! Textos de la interfaz. El idioma sale del de Windows (o de `Language` en settings.json);
 //! si no está traducido se usa el inglés.
 
-use std::sync::OnceLock;
+use std::sync::atomic::{AtomicPtr, Ordering};
 use windows_sys::Win32::Globalization::GetUserDefaultUILanguage;
 
 pub struct Strings {
@@ -50,6 +50,17 @@ pub struct Strings {
     pub about: &'static str,
     pub ready_title: &'static str,
     pub ready_text: &'static str,
+    pub password: &'static str,
+    pub password_hint: &'static str,
+    pub invalid_password: &'static str,
+    pub tray_options: &'static str,
+    pub opt_language: &'static str,
+    pub opt_auto_lang: &'static str,
+    pub opt_pattern: &'static str,
+    /// Los nombres entre llaves son literales: no se traducen.
+    pub opt_pattern_help: &'static str,
+    pub ok: &'static str,
+    pub cancel: &'static str,
 }
 
 /// Sustituye cada `{}` de `template` por el argumento que toca.
@@ -64,7 +75,12 @@ pub fn fill(template: &str, args: &[&str]) -> String {
     out
 }
 
-static CURRENT: OnceLock<&'static Strings> = OnceLock::new();
+// Puntero al idioma activo; se puede cambiar en marcha desde la ventana de opciones.
+static CURRENT: AtomicPtr<Strings> = AtomicPtr::new(std::ptr::null_mut());
+
+/// Códigos admitidos en `Language` de settings.json, con su nombre en el propio idioma.
+pub const LANGUAGES: [(&str, &str); 6] =
+    [("en", "English"), ("es", "Español"), ("fr", "Français"), ("de", "Deutsch"), ("pt", "Português (Brasil)"), ("it", "Italiano")];
 
 /// Fija el idioma. `code` es el de settings.json ("es", "en"...); `None` = el de Windows.
 pub fn init(code: Option<&str>) {
@@ -79,7 +95,7 @@ pub fn init(code: Option<&str>) {
             _ => &EN,
         }
     });
-    let _ = CURRENT.set(lang);
+    CURRENT.store(lang as *const Strings as *mut Strings, Ordering::Relaxed);
 }
 
 fn by_code(code: &str) -> Option<&'static Strings> {
@@ -95,7 +111,8 @@ fn by_code(code: &str) -> Option<&'static Strings> {
 }
 
 pub fn t() -> &'static Strings {
-    CURRENT.get().copied().unwrap_or(&EN)
+    // Solo se guardan punteros a las tablas estáticas de este módulo, que nunca se modifican.
+    unsafe { CURRENT.load(Ordering::Relaxed).as_ref() }.unwrap_or(&EN)
 }
 
 static EN: Strings = Strings {
@@ -141,6 +158,16 @@ static EN: Strings = Strings {
     about: "PDF Light {}\n\nFree software under the GNU AGPL, version 3 or later.\nSource code: {}\n\nOpen the project page?",
     ready_title: "PDF Light is ready",
     ready_text: "Print to the \u{201C}PDF Light\u{201D} printer from any program.",
+    password: "&Password",
+    password_hint: "Optional: required to open the PDF",
+    invalid_password: "The password can only contain unaccented letters, digits and common symbols (ASCII).",
+    tray_options: "Options...",
+    opt_language: "&Language",
+    opt_auto_lang: "Automatic (Windows language)",
+    opt_pattern: "File &name when saving without asking",
+    opt_pattern_help: "You can use {title}, {date} and {time}.",
+    ok: "OK",
+    cancel: "Cancel",
 };
 
 static ES: Strings = Strings {
@@ -186,6 +213,16 @@ static ES: Strings = Strings {
     about: "PDF Light {}\n\nSoftware libre bajo la GNU AGPL, versión 3 o posterior.\nCódigo fuente: {}\n\n¿Abrir la página del proyecto?",
     ready_title: "PDF Light está listo",
     ready_text: "Imprime en la impresora «PDF Light» desde cualquier programa.",
+    password: "Con&traseña",
+    password_hint: "Opcional: se pedirá al abrir el PDF",
+    invalid_password: "La contraseña solo puede llevar letras sin acento, números y símbolos comunes (ASCII).",
+    tray_options: "Opciones...",
+    opt_language: "&Idioma",
+    opt_auto_lang: "Automático (idioma de Windows)",
+    opt_pattern: "&Nombre del fichero al guardar sin preguntar",
+    opt_pattern_help: "Puedes usar {title}, {date} y {time}.",
+    ok: "Aceptar",
+    cancel: "Cancelar",
 };
 
 static FR: Strings = Strings {
@@ -231,6 +268,16 @@ static FR: Strings = Strings {
     about: "PDF Light {}\n\nLogiciel libre sous licence GNU AGPL, version 3 ou ultérieure.\nCode source : {}\n\nOuvrir la page du projet ?",
     ready_title: "PDF Light est prêt",
     ready_text: "Imprimez sur l'imprimante « PDF Light » depuis n'importe quel programme.",
+    password: "&Mot de passe",
+    password_hint: "Facultatif : demandé à l'ouverture du PDF",
+    invalid_password: "Le mot de passe ne peut contenir que des lettres sans accent, des chiffres et des symboles courants (ASCII).",
+    tray_options: "Options...",
+    opt_language: "&Langue",
+    opt_auto_lang: "Automatique (langue de Windows)",
+    opt_pattern: "&Nom du fichier lors de l'enregistrement sans demander",
+    opt_pattern_help: "Vous pouvez utiliser {title}, {date} et {time}.",
+    ok: "OK",
+    cancel: "Annuler",
 };
 
 static DE: Strings = Strings {
@@ -276,6 +323,16 @@ static DE: Strings = Strings {
     about: "PDF Light {}\n\nFreie Software unter der GNU AGPL, Version 3 oder später.\nQuellcode: {}\n\nProjektseite öffnen?",
     ready_title: "PDF Light ist bereit",
     ready_text: "Drucken Sie aus einem beliebigen Programm auf dem Drucker \u{201E}PDF Light\u{201C}.",
+    password: "&Kennwort",
+    password_hint: "Optional: wird zum Öffnen des PDFs benötigt",
+    invalid_password: "Das Kennwort darf nur Buchstaben ohne Akzente, Ziffern und gängige Sonderzeichen enthalten (ASCII).",
+    tray_options: "Optionen...",
+    opt_language: "&Sprache",
+    opt_auto_lang: "Automatisch (Windows-Sprache)",
+    opt_pattern: "Datei&name beim Speichern ohne Nachfrage",
+    opt_pattern_help: "Sie können {title}, {date} und {time} verwenden.",
+    ok: "OK",
+    cancel: "Abbrechen",
 };
 
 // Portugués de Brasil.
@@ -322,6 +379,16 @@ static PT: Strings = Strings {
     about: "PDF Light {}\n\nSoftware livre sob a GNU AGPL, versão 3 ou posterior.\nCódigo-fonte: {}\n\nAbrir a página do projeto?",
     ready_title: "O PDF Light está pronto",
     ready_text: "Imprima na impressora \u{201C}PDF Light\u{201D} a partir de qualquer programa.",
+    password: "S&enha",
+    password_hint: "Opcional: necessária para abrir o PDF",
+    invalid_password: "A senha só pode conter letras sem acento, números e símbolos comuns (ASCII).",
+    tray_options: "Opções...",
+    opt_language: "&Idioma",
+    opt_auto_lang: "Automático (idioma do Windows)",
+    opt_pattern: "&Nome do arquivo ao salvar sem perguntar",
+    opt_pattern_help: "Você pode usar {title}, {date} e {time}.",
+    ok: "OK",
+    cancel: "Cancelar",
 };
 
 static IT: Strings = Strings {
@@ -367,6 +434,16 @@ static IT: Strings = Strings {
     about: "PDF Light {}\n\nSoftware libero con licenza GNU AGPL, versione 3 o successiva.\nCodice sorgente: {}\n\nAprire la pagina del progetto?",
     ready_title: "PDF Light è pronto",
     ready_text: "Stampa sulla stampante «PDF Light» da qualsiasi programma.",
+    password: "&Password",
+    password_hint: "Facoltativa: richiesta all'apertura del PDF",
+    invalid_password: "La password può contenere solo lettere senza accenti, cifre e simboli comuni (ASCII).",
+    tray_options: "Opzioni...",
+    opt_language: "&Lingua",
+    opt_auto_lang: "Automatica (lingua di Windows)",
+    opt_pattern: "&Nome del file quando si salva senza chiedere",
+    opt_pattern_help: "Puoi usare {title}, {date} e {time}.",
+    ok: "OK",
+    cancel: "Annulla",
 };
 
 #[cfg(test)]

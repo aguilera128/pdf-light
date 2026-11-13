@@ -30,6 +30,8 @@ pub struct Settings {
     pub quality: String,
     pub open_after_save: bool,
     pub auto_save: bool,
+    /// Nombre del PDF al guardar sin preguntar: admite {title}, {date} y {time}.
+    pub auto_name_pattern: String,
     pub ghostscript_path: Option<String>,
     /// "en", "es", "fr", "de", "pt" o "it"; sin valor = el idioma de Windows.
     pub language: Option<String>,
@@ -43,6 +45,7 @@ impl Default for Settings {
             quality: "ebook".into(),
             open_after_save: true,
             auto_save: false,
+            auto_name_pattern: "{title}".into(),
             ghostscript_path: None,
             language: None,
         }
@@ -268,6 +271,21 @@ pub fn move_selected<T>(items: &mut [T], selected: &[usize], up: bool) -> Vec<us
     (0..n).filter(|&i| is_selected[i]).collect()
 }
 
+/// Nombre (sin extensión) para el guardado automático: sustituye {title}, {date} y {time} del patrón.
+/// `date` y `time` llegan ya formateados (AAAA-MM-DD y HH-MM-SS).
+pub fn auto_name(pattern: &str, title_name: &str, date: &str, time: &str) -> String {
+    let name = pattern.replace("{title}", title_name).replace("{date}", date).replace("{time}", time);
+    let name: String = name.chars().map(|c| if INVALID.contains(&c) || c.is_control() { '_' } else { c }).collect();
+    let name = name.trim_matches([' ', '.']);
+    if name.is_empty() { title_name.to_string() } else { name.to_string() }
+}
+
+/// Ghostscript solo cifra con la revisión 3 del estándar (RC4 de 128 bits), que limita la contraseña
+/// a 32 bytes y no define cómo codificar caracteres no ASCII: se admiten solo los ASCII imprimibles.
+pub fn is_valid_password(password: &str) -> bool {
+    password.len() <= 32 && password.chars().all(|c| c == ' ' || c.is_ascii_graphic())
+}
+
 /// Devuelve `path`, o `path` con sufijo _1, _2... si ya existe.
 pub fn unique_path(path: PathBuf) -> PathBuf {
     if !path.exists() {
@@ -306,7 +324,7 @@ fn version_key(exe: &Path) -> Vec<u32> {
     dir.to_string_lossy().split(|c: char| !c.is_ascii_digit()).filter_map(|n| n.parse().ok()).collect()
 }
 
-pub fn ghostscript_args(inputs: &[PathBuf], output: &Path, quality: &str, title: &str) -> Vec<String> {
+pub fn ghostscript_args(inputs: &[PathBuf], output: &Path, quality: &str, title: &str, password: Option<&str>) -> Vec<String> {
     let quality = if QUALITIES.contains(&quality) { quality } else { "ebook" };
     let mut args: Vec<String> = [
         "-dNOPAUSE",
@@ -325,6 +343,15 @@ pub fn ghostscript_args(inputs: &[PathBuf], output: &Path, quality: &str, title:
     args.extend(inputs.iter().map(|p| p.display().to_string()));
     // Metadatos al final para que manden sobre los del propio PostScript.
     // Cadena hex UTF-16BE: no hay que escapar nada y admite cualquier carácter.
+    if let Some(password) = password.filter(|p| !p.is_empty()) {
+        // Misma contraseña de usuario y de propietario: quien abre el PDF puede hacer todo con él.
+        // NOTA: va en la línea de comandos de Ghostscript, visible para otros procesos del mismo
+        // usuario mientras dura la conversión; es lo que admite gswin64c.
+        args.insert(0, format!("-sUserPassword={password}"));
+        args.insert(0, format!("-sOwnerPassword={password}"));
+        args.insert(0, "-dKeyLength=128".into());
+        args.insert(0, "-dEncryptionR=3".into());
+    }
     let hex: String = title.encode_utf16().map(|u| format!("{u:04X}")).collect();
     args.push("-c".into());
     args.push(format!("[ /Title <FEFF{hex}> /Creator (PDF Light) /DOCINFO pdfmark"));
@@ -332,7 +359,7 @@ pub fn ghostscript_args(inputs: &[PathBuf], output: &Path, quality: &str, title:
 }
 
 /// Convierte uno o varios PostScript en un único PDF y, si sale bien, borra los PostScript.
-pub fn convert(settings: &Settings, inputs: &[PathBuf], output: &Path, title: &str) -> Result<(), ConvertError> {
+pub fn convert(settings: &Settings, inputs: &[PathBuf], output: &Path, title: &str, password: Option<&str>) -> Result<(), ConvertError> {
     let gs = find_ghostscript(settings).ok_or(ConvertError::NoGhostscript)?;
     // Se genera en temporal y se mueve al final: nunca queda un PDF a medias en el destino.
     static SEQ: AtomicU32 = AtomicU32::new(0);
@@ -341,7 +368,7 @@ pub fn convert(settings: &Settings, inputs: &[PathBuf], output: &Path, title: &s
     let result = (|| {
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         let out = Command::new(&gs)
-            .args(ghostscript_args(inputs, &tmp, &settings.quality, title))
+            .args(ghostscript_args(inputs, &tmp, &settings.quality, title, password))
             .creation_flags(CREATE_NO_WINDOW)
             .output()
             .map_err(|e| ConvertError::Launch(e.to_string()))?;
@@ -414,7 +441,15 @@ mod tests {
 
     #[test]
     fn gs_args() {
-        let args = ghostscript_args(&["a.ps".into(), "b.ps".into()], Path::new(r"C:\o ut.pdf"), "nope", "Ñ");
+        let plain = ghostscript_args(&["a.ps".into()], Path::new("o.pdf"), "ebook", "t", Some(""));
+        assert!(!plain.iter().any(|a| a.contains("Password") || a.contains("Encryption")));
+        let secret = ghostscript_args(&["a.ps".into()], Path::new("o.pdf"), "ebook", "t", Some("abc 1"));
+        assert!(secret.contains(&"-sUserPassword=abc 1".to_string()) && secret.contains(&"-dEncryptionR=3".to_string()));
+        assert!(is_valid_password("abc 1!") && !is_valid_password("año") && !is_valid_password(&"x".repeat(33)));
+        assert_eq!(auto_name("{date} {title}", "Factura", "2026-11-13", "09-30-00"), "2026-11-13 Factura");
+        assert_eq!(auto_name("a/b:{time}", "x", "d", "09-30-00"), "a_b_09-30-00");
+        assert_eq!(auto_name("  ", "Factura", "d", "t"), "Factura");
+        let args = ghostscript_args(&["a.ps".into(), "b.ps".into()], Path::new(r"C:\o ut.pdf"), "nope", "Ñ", None);
         assert!(args.contains(&"-dPDFSETTINGS=/ebook".to_string()));
         assert!(args.contains(&r"-sOutputFile=C:\o ut.pdf".to_string()));
         let pos = |s: &str| args.iter().position(|a| a == s).unwrap();

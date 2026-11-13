@@ -7,10 +7,11 @@ printer and save the result as a PDF.
 
 - Save window with name, folder and quality.
 - Merges several print jobs into a single PDF, in the order you choose.
-- Optional automatic saving, without asking.
+- Optional password to open the PDF.
+- Optional automatic saving, without asking, with a file name pattern (`{title}`, `{date}`, `{time}`).
 - A single executable of about 400 KB written in Rust, with no runtime; it lives in the system tray.
 - Interface in English, Spanish, French, German, Portuguese (Brazil) and Italian. It follows the
-  Windows display language.
+  Windows display language and can be changed in Options (tray menu).
 
 ## Install
 
@@ -35,10 +36,11 @@ Ghostscript stays installed; uninstall it separately from the same place.
 PDF Light does not send any data to other systems: it has no telemetry and does not check for
 updates. Settings are stored in `%AppData%\PDFLight\settings.json`.
 
-To force a language, add `"Language": "en"` (or `es`, `fr`, `de`, `pt`, `it`) to that file.
-
 ## Limitations
 
+- Password protection uses 128-bit RC4 (PDF encryption revision 3), the strongest Ghostscript
+  offers. It keeps the file from being opened casually; do not rely on it for sensitive documents.
+  Passwords are limited to 32 unaccented (ASCII) characters.
 - The application has to be running: if it is not, only the last printed job is kept.
 - Meant for one user per computer at a time (the job folder is shared).
 - Document names are received in the system's ANSI code page, so characters outside it

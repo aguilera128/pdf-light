@@ -15,7 +15,8 @@ use windows_sys::Win32::Foundation::*;
 use windows_sys::Win32::System::Com::{COINIT_APARTMENTTHREADED, CoInitializeEx, CoTaskMemFree};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::System::Threading::CreateMutexW;
-use windows_sys::Win32::UI::Controls::{BST_CHECKED, CheckDlgButton, EM_SETSEL, IsDlgButtonChecked};
+use windows_sys::Win32::System::SystemInformation::GetLocalTime;
+use windows_sys::Win32::UI::Controls::{BST_CHECKED, CheckDlgButton, EM_SETCUEBANNER, EM_SETSEL, IsDlgButtonChecked};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, SetFocus};
 use windows_sys::Win32::UI::Shell::*;
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
@@ -33,6 +34,15 @@ const IDC_INTRO: i32 = 110;
 const IDC_LBL_NAME: i32 = 111;
 const IDC_LBL_FOLDER: i32 = 112;
 const IDC_LBL_QUALITY: i32 = 113;
+const IDC_LBL_PASSWORD: i32 = 116;
+const IDC_PASSWORD: i32 = 117;
+// Diálogo de opciones (recurso 2).
+const IDO_LBL_LANGUAGE: i32 = 201;
+const IDO_LANGUAGE: i32 = 202;
+const IDO_LBL_PATTERN: i32 = 203;
+const IDO_PATTERN: i32 = 204;
+const IDO_HELP: i32 = 205;
+const IDM_OPTIONS: i32 = 206; // orden «Opciones» del menú de la bandeja
 const IDC_UP: i32 = 114;
 const IDC_DOWN: i32 = 115;
 const ID_SAVE: i32 = 1; // IDOK
@@ -46,6 +56,7 @@ struct App {
     settings: Settings,
     jobs: Vec<Job>,
     busy: bool,
+    options_open: bool,
     taskbar_created: u32,
 }
 
@@ -58,7 +69,7 @@ struct Done {
 }
 
 thread_local! {
-    static APP: RefCell<App> = RefCell::new(App { settings: Settings::load(), jobs: Vec::new(), busy: false, taskbar_created: 0 });
+    static APP: RefCell<App> = RefCell::new(App { settings: Settings::load(), jobs: Vec::new(), busy: false, options_open: false, taskbar_created: 0 });
 }
 
 /// Acceso corto al estado. No llamar a nada modal (MessageBox, menús) dentro de `f`:
@@ -104,26 +115,7 @@ unsafe extern "system" fn dlg_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
     unsafe {
         match msg {
             WM_INITDIALOG => {
-                let combo = GetDlgItem(hwnd, IDC_QUALITY);
-                for label in t().qualities {
-                    SendMessageW(combo, CB_ADDSTRING, 0, w(label).as_ptr() as isize);
-                }
-                // La plantilla del .rc va en inglés; aquí se pone el idioma elegido.
-                for (id, text) in [
-                    (IDC_INTRO, t().intro),
-                    (IDC_LBL_NAME, t().name),
-                    (IDC_LBL_FOLDER, t().folder),
-                    (IDC_LBL_QUALITY, t().quality),
-                    (IDC_BROWSE, t().browse),
-                    (IDC_OPEN, t().open_after),
-                    (IDC_AUTO, t().auto_save),
-                    (IDC_DISCARD, t().discard),
-                    (ID_SAVE, t().save),
-                    (IDC_UP, "▲"),
-                    (IDC_DOWN, "▼"),
-                ] {
-                    set_text(hwnd, id, text);
-                }
+                apply_texts(hwnd);
                 sync_from_settings(hwnd);
                 SendMessageW(hwnd, WM_SETICON, ICON_SMALL as usize, app_icon(SM_CXSMICON) as isize);
                 SendMessageW(hwnd, WM_SETICON, ICON_BIG as usize, app_icon(SM_CXICON) as isize);
@@ -153,6 +145,7 @@ unsafe extern "system" fn dlg_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 (ID_CLOSE, _) => hide(hwnd),
                 (IDC_BROWSE, _) => browse(hwnd),
                 (IDC_DISCARD, _) => discard(hwnd),
+                (IDM_OPTIONS, _) => options(hwnd),
                 (IDC_UP, _) => move_jobs(hwnd, true),
                 (IDC_DOWN, _) => move_jobs(hwnd, false),
                 (IDC_LIST, LBN_SELCHANGE) => selection_changed(hwnd),
@@ -175,6 +168,107 @@ unsafe extern "system" fn dlg_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             _ => return 0,
         }
         1
+    }
+}
+
+/// Pone los textos del idioma activo. La plantilla del .rc va en inglés solo como reserva.
+unsafe fn apply_texts(hwnd: HWND) {
+    unsafe {
+        for (id, text) in [
+            (IDC_INTRO, t().intro),
+            (IDC_LBL_NAME, t().name),
+            (IDC_LBL_FOLDER, t().folder),
+            (IDC_LBL_QUALITY, t().quality),
+            (IDC_LBL_PASSWORD, t().password),
+            (IDC_BROWSE, t().browse),
+            (IDC_OPEN, t().open_after),
+            (IDC_AUTO, t().auto_save),
+            (IDC_DISCARD, t().discard),
+            (ID_SAVE, t().save),
+            (IDC_UP, "▲"),
+            (IDC_DOWN, "▼"),
+        ] {
+            set_text(hwnd, id, text);
+        }
+        SendMessageW(GetDlgItem(hwnd, IDC_PASSWORD), EM_SETCUEBANNER, 1, w(t().password_hint).as_ptr() as isize);
+        let combo = GetDlgItem(hwnd, IDC_QUALITY);
+        SendMessageW(combo, CB_RESETCONTENT, 0, 0);
+        for label in t().qualities {
+            SendMessageW(combo, CB_ADDSTRING, 0, w(label).as_ptr() as isize);
+        }
+    }
+}
+
+/// Fecha y hora locales para los nombres automáticos: ("AAAA-MM-DD", "HH-MM-SS").
+fn now() -> (String, String) {
+    let mut t = unsafe { zeroed() };
+    unsafe { GetLocalTime(&mut t) };
+    (format!("{:04}-{:02}-{:02}", t.wYear, t.wMonth, t.wDay), format!("{:02}-{:02}-{:02}", t.wHour, t.wMinute, t.wSecond))
+}
+
+unsafe fn options(hwnd: HWND) {
+    unsafe {
+        if app(|a| std::mem::replace(&mut a.options_open, true)) {
+            return; // ya está abierta
+        }
+        let changed = DialogBoxParamW(GetModuleHandleW(null()), 2 as *const u16, null_mut(), Some(options_proc), 0) == 1;
+        app(|a| a.options_open = false);
+        if changed {
+            i18n::init(app(|a| a.settings.language.clone()).as_deref());
+            apply_texts(hwnd);
+            sync_from_settings(hwnd);
+            selection_changed(hwnd);
+        }
+    }
+}
+
+unsafe extern "system" fn options_proc(hwnd: HWND, msg: u32, wparam: WPARAM, _lparam: LPARAM) -> isize {
+    unsafe {
+        match msg {
+            WM_INITDIALOG => {
+                for (id, text) in [
+                    (IDO_LBL_LANGUAGE, t().opt_language),
+                    (IDO_LBL_PATTERN, t().opt_pattern),
+                    (IDO_HELP, t().opt_pattern_help),
+                    (ID_SAVE, t().ok),
+                    (ID_CLOSE, t().cancel),
+                ] {
+                    set_text(hwnd, id, text);
+                }
+                SendMessageW(hwnd, WM_SETICON, ICON_SMALL as usize, app_icon(SM_CXSMICON) as isize);
+                let (language, pattern) = app(|a| (a.settings.language.clone(), a.settings.auto_name_pattern.clone()));
+                let combo = GetDlgItem(hwnd, IDO_LANGUAGE);
+                SendMessageW(combo, CB_ADDSTRING, 0, w(t().opt_auto_lang).as_ptr() as isize);
+                for (_, name) in i18n::LANGUAGES {
+                    SendMessageW(combo, CB_ADDSTRING, 0, w(name).as_ptr() as isize);
+                }
+                // 0 = automático; el resto, en el orden de i18n::LANGUAGES.
+                let current = language.and_then(|l| i18n::LANGUAGES.iter().position(|(code, _)| l.eq_ignore_ascii_case(code))).map_or(0, |i| i + 1);
+                SendMessageW(combo, CB_SETCURSEL, current, 0);
+                set_text(hwnd, IDO_PATTERN, &pattern);
+                SetForegroundWindow(hwnd);
+                1
+            }
+            WM_COMMAND => match (wparam & 0xFFFF) as i32 {
+                ID_SAVE => {
+                    let choice = SendMessageW(GetDlgItem(hwnd, IDO_LANGUAGE), CB_GETCURSEL, 0, 0);
+                    let pattern = get_text(hwnd, IDO_PATTERN).trim().to_string();
+                    app(|a| {
+                        a.settings.language = (choice > 0).then(|| i18n::LANGUAGES[(choice as usize - 1).min(i18n::LANGUAGES.len() - 1)].0.to_string());
+                        a.settings.auto_name_pattern = if pattern.is_empty() { "{title}".to_string() } else { pattern };
+                        a.settings.save();
+                    });
+                    EndDialog(hwnd, 1);
+                    1
+                }
+                ID_CLOSE => {
+                    EndDialog(hwnd, 0);
+                    1
+                }
+                _ => 0,
+            },
+            _ => 0,
+        }
     }
 }
 
@@ -214,6 +308,7 @@ unsafe fn tray_menu(hwnd: HWND) {
         AppendMenuW(menu, MF_STRING, 2, w(t().tray_open_folder).as_ptr());
         AppendMenuW(menu, MF_STRING | if auto { MF_CHECKED } else { 0 }, 3, w(t().tray_auto).as_ptr());
         AppendMenuW(menu, MF_SEPARATOR, 0, null());
+        AppendMenuW(menu, MF_STRING, 6, w(t().tray_options).as_ptr());
         AppendMenuW(menu, MF_STRING, 5, w(t().tray_about).as_ptr());
         AppendMenuW(menu, MF_STRING, 4, w(t().tray_exit).as_ptr());
         let mut pt: POINT = zeroed();
@@ -233,6 +328,9 @@ unsafe fn tray_menu(hwnd: HWND) {
             }
             4 => {
                 DestroyWindow(hwnd);
+            }
+            6 => {
+                PostMessageW(hwnd, WM_COMMAND, IDM_OPTIONS as usize, 0);
             }
             5 => {
                 let text = fill(t().about, &[env!("CARGO_PKG_VERSION"), PROJECT_URL]);
@@ -372,9 +470,11 @@ unsafe fn on_job(hwnd: HWND, job: Job) {
     unsafe {
         if app(|a| a.settings.auto_save) {
             let folder = app(|a| a.settings.output_folder.clone());
-            let name = logic::file_name_from_title(&job.title, t().default_name);
+            let title = logic::file_name_from_title(&job.title, t().default_name);
+            let (date, time) = now();
+            let name = logic::auto_name(&app(|a| a.settings.auto_name_pattern.clone()), &title, &date, &time);
             let target = logic::unique_path(Path::new(&folder).join(format!("{name}.pdf")));
-            spawn_convert(hwnd, vec![job], target, name, true);
+            spawn_convert(hwnd, vec![job], target, title, None, true);
         } else {
             add_to_list(hwnd, job);
         }
@@ -399,12 +499,12 @@ unsafe fn add_to_list(hwnd: HWND, job: Job) {
 }
 
 /// Convierte en un hilo aparte (Ghostscript puede tardar) y avisa con WM_DONE.
-unsafe fn spawn_convert(hwnd: HWND, jobs: Vec<Job>, target: PathBuf, title: String, auto: bool) {
+unsafe fn spawn_convert(hwnd: HWND, jobs: Vec<Job>, target: PathBuf, title: String, password: Option<String>, auto: bool) {
     let settings = app(|a| a.settings.clone());
     let hwnd = hwnd as isize;
     std::thread::spawn(move || {
         let inputs: Vec<PathBuf> = jobs.iter().map(|j| j.ps.clone()).collect();
-        let result = logic::convert(&settings, &inputs, &target, &title);
+        let result = logic::convert(&settings, &inputs, &target, &title, password.as_deref());
         let done = Box::into_raw(Box::new(Done { jobs, target, result, auto }));
         unsafe { PostMessageW(hwnd as HWND, WM_DONE, 0, done as isize) };
     });
@@ -423,6 +523,7 @@ unsafe fn on_done(hwnd: HWND, done: Done) {
                     a.jobs.retain(|j| !done.jobs.iter().any(|d| d.ps == j.ps));
                     a.jobs.len()
                 });
+                set_text(hwnd, IDC_PASSWORD, ""); // la contraseña vale para un solo PDF
                 refresh_list(hwnd, &[0]);
                 if left == 0 {
                     hide(hwnd);
@@ -477,6 +578,11 @@ unsafe fn save(hwnd: HWND) {
             message(hwnd, t().invalid_folder, MB_OK | MB_ICONWARNING);
             return;
         }
+        let password = get_text(hwnd, IDC_PASSWORD);
+        if !logic::is_valid_password(&password) {
+            message(hwnd, t().invalid_password, MB_OK | MB_ICONWARNING);
+            return;
+        }
         let target = Path::new(&folder).join(format!("{name}.pdf"));
         if target.exists()
             && message(hwnd, &fill(t().exists, &[&format!("{name}.pdf")]), MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) != IDYES
@@ -498,7 +604,7 @@ unsafe fn save(hwnd: HWND) {
         let name = name.to_string();
         selection_changed(hwnd); // desactiva los botones mientras convierte
         set_text(hwnd, IDC_NAME, &name);
-        spawn_convert(hwnd, jobs, target, name, false);
+        spawn_convert(hwnd, jobs, target, name, Some(password), false);
     }
 }
 

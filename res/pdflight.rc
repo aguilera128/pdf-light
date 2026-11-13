@@ -14,6 +14,7 @@
 #define LBS_NOINTEGRALHEIGHT 0x100L
 #define LBS_EXTENDEDSEL 0x800L
 #define ES_AUTOHSCROLL 0x80L
+#define ES_PASSWORD 0x20L
 #define CBS_DROPDOWNLIST 0x3L
 
 // Los identificadores coinciden con las constantes de src/main.rs.
@@ -22,27 +23,44 @@
 // El primer icono del ejecutable es el que muestra el Explorador.
 1 ICON "pdflight.ico"
 
-1 DIALOGEX 0, 0, 300, 212
+1 DIALOGEX 0, 0, 300, 230
 STYLE DS_SETFONT | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX
 CAPTION "PDF Light"
 FONT 9, "Segoe UI"
 BEGIN
     // Textos en inglés solo como reserva: src/main.rs los sustituye por los de src/i18n.rs.
-    // Los anchos dejan sitio para el idioma más largo (alemán).
+    // Los anchos dejan sitio para el idioma más largo (la columna de etiquetas, para «Mot de passe»).
     LTEXT "Pending jobs.", 110, 7, 6, 286, 18
     LISTBOX 101, 7, 27, 262, 73, LBS_NOTIFY | LBS_EXTENDEDSEL | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_BORDER | WS_TABSTOP
     PUSHBUTTON "^", 114, 273, 27, 20, 14
     PUSHBUTTON "v", 115, 273, 44, 20, 14
-    LTEXT "&Name", 111, 7, 108, 42, 10
-    EDITTEXT 102, 52, 106, 218, 13, ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT "&Name", 111, 7, 108, 50, 10
+    EDITTEXT 102, 60, 106, 210, 13, ES_AUTOHSCROLL | WS_TABSTOP
     LTEXT ".pdf", -1, 274, 108, 19, 10
-    LTEXT "&Folder", 112, 7, 126, 42, 10
-    EDITTEXT 103, 52, 124, 180, 13, ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT "&Folder", 112, 7, 126, 50, 10
+    EDITTEXT 103, 60, 124, 172, 13, ES_AUTOHSCROLL | WS_TABSTOP
     PUSHBUTTON "&Browse...", 104, 236, 123, 57, 15
-    LTEXT "&Quality", 113, 7, 144, 42, 10
-    COMBOBOX 105, 52, 142, 180, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    AUTOCHECKBOX "&Open the PDF when done", 106, 52, 161, 241, 10
-    AUTOCHECKBOX "Save &without asking", 107, 52, 174, 241, 10
-    PUSHBUTTON "&Discard", 108, 139, 191, 62, 15
-    DEFPUSHBUTTON "Save", 1, 205, 191, 88, 15
+    LTEXT "&Quality", 113, 7, 144, 50, 10
+    COMBOBOX 105, 60, 142, 172, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT "&Password", 116, 7, 162, 50, 10
+    EDITTEXT 117, 60, 160, 172, 13, ES_AUTOHSCROLL | ES_PASSWORD | WS_TABSTOP
+    AUTOCHECKBOX "&Open the PDF when done", 106, 60, 179, 233, 10
+    AUTOCHECKBOX "Save &without asking", 107, 60, 192, 233, 10
+    PUSHBUTTON "&Discard", 108, 139, 209, 62, 15
+    DEFPUSHBUTTON "Save", 1, 205, 209, 88, 15
+END
+
+// Opciones (menú de la bandeja).
+2 DIALOGEX 0, 0, 240, 112
+STYLE DS_SETFONT | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "PDF Light"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT "&Language", 201, 7, 8, 226, 10
+    COMBOBOX 202, 7, 20, 226, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT "File &name when saving without asking", 203, 7, 42, 226, 10
+    EDITTEXT 204, 7, 54, 226, 13, ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT "{title} {date} {time}", 205, 7, 70, 226, 10
+    DEFPUSHBUTTON "OK", 1, 127, 90, 50, 15
+    PUSHBUTTON "Cancel", 2, 183, 90, 50, 15
 END
