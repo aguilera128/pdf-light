@@ -1,0 +1,41 @@
+#pragma code_page(65001)
+
+// Estilos en numérico para no depender de las cabeceras del SDK de Windows.
+#define DS_SETFONT 0x40L
+#define DS_CENTER 0x800L
+#define WS_POPUP 0x80000000L
+#define WS_CAPTION 0x00C00000L
+#define WS_SYSMENU 0x00080000L
+#define WS_MINIMIZEBOX 0x00020000L
+#define WS_VSCROLL 0x00200000L
+#define WS_BORDER 0x00800000L
+#define WS_TABSTOP 0x00010000L
+#define LBS_NOTIFY 0x1L
+#define LBS_NOINTEGRALHEIGHT 0x100L
+#define LBS_EXTENDEDSEL 0x800L
+#define ES_AUTOHSCROLL 0x80L
+#define CBS_DROPDOWNLIST 0x3L
+
+// Los identificadores coinciden con las constantes de src/main.rs.
+1 24 "pdflight.manifest"
+
+1 DIALOGEX 0, 0, 300, 212
+STYLE DS_SETFONT | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX
+CAPTION "PDF Light"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT "Trabajos pendientes. Selecciona varios (Ctrl o Mayús) para unirlos en un solo PDF.", -1, 7, 7, 286, 10
+    LISTBOX 101, 7, 20, 286, 80, LBS_NOTIFY | LBS_EXTENDEDSEL | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_BORDER | WS_TABSTOP
+    LTEXT "&Nombre", -1, 7, 108, 34, 10
+    EDITTEXT 102, 44, 106, 226, 13, ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT ".pdf", -1, 274, 108, 19, 10
+    LTEXT "&Carpeta", -1, 7, 126, 34, 10
+    EDITTEXT 103, 44, 124, 190, 13, ES_AUTOHSCROLL | WS_TABSTOP
+    PUSHBUTTON "E&xaminar...", 104, 238, 123, 55, 15
+    LTEXT "C&alidad", -1, 7, 144, 34, 10
+    COMBOBOX 105, 44, 142, 190, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    AUTOCHECKBOX "A&brir el PDF al terminar", 106, 44, 161, 220, 10
+    AUTOCHECKBOX "&Guardar sin preguntar a partir de ahora (en esta carpeta)", 107, 44, 174, 249, 10
+    PUSHBUTTON "&Descartar", 108, 158, 191, 60, 15
+    DEFPUSHBUTTON "Guardar", 1, 223, 191, 70, 15
+END
